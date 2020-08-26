@@ -1,0 +1,4 @@
+Runtimes:
+Read Data: 0.555743 seconds
+Run Nearest Neighbors Approximation: 26.268373 seconds
+Write Data: 57.344605 seconds

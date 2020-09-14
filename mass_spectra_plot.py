@@ -66,7 +66,7 @@ def readSpectraData(input_filename):
 # Line color and Spectra Number are used for differentiating between other plots
 def generate_massspectra_plot(bin_lower_bounds, intensities, line_color, spectra_number):
     spectra = "Spectra " + str(spectra_number)
-    spectra_plt, = ax.plot(bin_lower_bounds, intensities, color=line_color, linewidth=.95, label=spectra)
+    spectra_plt = ax.bar(bin_lower_bounds, intensities, color=line_color, label=spectra)
 
 # Takes in spectra data and the spectra to plot and plots them, ouputing the result to a file if filename is provided
 def generate_multiple_massspectra_plots(spectra_data, spectra_numbers, output_filename=None):
@@ -80,7 +80,9 @@ def generate_multiple_massspectra_plots(spectra_data, spectra_numbers, output_fi
     # Loops through all spectra and plots it
     for spectra in spectra_numbers:
         m_to_z = spectra_data.loc[spectra, :]
-        intensities = m_to_z/np.max(m_to_z) * 100 # Normalizes the spectra values to intensities based on the max value for that spectra
+        intensities = m_to_z
+        if(np.max(m_to_z) != 0):
+            intensities = m_to_z/np.max(m_to_z) * 100 # Normalizes the spectra values to intensities based on the max value for that spectra
         generate_massspectra_plot(bin_lower_bounds, intensities, plt_colors[color_iterator], spectra)
         color_iterator += 1 
 

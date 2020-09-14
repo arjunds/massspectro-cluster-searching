@@ -4,8 +4,8 @@ from sklearn.neighbors import NearestNeighbors
 
 print("Reading Data")
 start_time = time.perf_counter()
-input_data = pandas.read_csv("agp3k_data.csv", index_col=0)
-input_data = input_data.loc[:, '1':] #Trims the data so the first column isn't included
+input_data = pandas.read_csv("agp3k_data.csv")
+input_data = input_data.drop(input_data.columns[0], axis=1) #Trims the data so the first column isn't included
 read_time = time.perf_counter()-start_time
 
 print("Clustering Data")

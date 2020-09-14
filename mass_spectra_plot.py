@@ -92,6 +92,8 @@ def generate_multiple_massspectra_plots(spectra_data, spectra_numbers, output_fi
     plt.show()
 
 
+# Sample Command to run:
+# python3 mass_spectra_plot.py --data data/agp3k_data.csv --spectra 1 2 3 4 5 6 -output plot
 if __name__ == "__main__":
     # Input arguments
     parser = argparse.ArgumentParser(description='Input data and specific spectra to plot')

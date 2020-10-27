@@ -5,6 +5,7 @@ import argparse
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import rcParams
 import re
+import nimfa
 
 # Six colors used for plotting different spectra
 plt_colors = ["red", "blue", "green", "#FFA500", "magenta", "cyan"]
@@ -93,6 +94,31 @@ def generate_multiple_massspectra_plots(spectra_data, spectra_numbers, output_fi
         print("Plot saved to " + output_filename + "." + filetype)
     plt.show()
 
+def generate_plot(spectra_data, output_filename=None):
+    bin_lower_bounds = []
+
+    # Loops through each column header in the .csv file to get the lower bound for plotting
+    for column in spectra_data.columns:
+        bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
+        bin_lower_bounds.append(float(bound[0]))
+    
+    # Convert to np array and transpose it so that the bin numbers are the rows and it's vectors of spectra intensity
+    data = np.transpose(spectra_data.values)
+    nmf_model = nimfa.Nmf(data)
+    basis = nmf_model().basis()
+    intensities = []
+
+    for vector in basis:
+        print(np.linalg.norm(vector))
+        intensities.append(np.linalg.norm(vector)) # Adds the magnitude of the intensity vector to the array for graphing
+
+    intensities = intensities/np.max(intensities) * 100
+    spectra_plt = ax.bar(bin_lower_bounds, intensities)
+
+    if(output_filename != None):
+        plt.savefig(output_filename + "." + filetype, dpi=fig.dpi, format=filetype)
+        print("Plot saved to " + output_filename + "." + filetype)
+    plt.show()
 
 # Sample Command to run:
 # python3 mass_spectra_plot.py --data data/agp3k_data.csv --spectra 1 2 3 4 5 6 -output plot
@@ -115,4 +141,5 @@ if __name__ == "__main__":
         input_spectra = input_spectra[:max_spectra_amount]
 
     spectra_data = readSpectraData(input_file)
-    generate_multiple_massspectra_plots(spectra_data, input_spectra, output_filename)
+    generate_plot(spectra_data, output_filename)
+#    generate_multiple_massspectra_plots(spectra_data, input_spectra, output_filename)

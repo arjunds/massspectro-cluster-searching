@@ -3,13 +3,17 @@ import numpy as np
 import math as mt
 import argparse
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import re
 import nimfa
+import sys
 
 # Six colors used for plotting different spectra
 plt_colors = ["red", "blue", "green", "#FFA500", "magenta", "cyan"]
 filetype = "pdf" # "png" or "pdf"
 figdpi = 72 #int: DPI of the PDF output file
+fig = None
+output_pdf = None
 
 '''Configures a graph according to the given settingsAssumes that x_lim and y_lim are
 2D vectors with an upper and lower limit such as [1,2]'''
@@ -59,10 +63,11 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
     #Object used for plotting
     return ax
 
-#Saves the plot to a PDF file with the given name 
-def savePlot(output_filename):
-    if(output_filename != None):
-        plt.savefig(output_filename + "." + filetype, dpi=figdpi, format=filetype)
+#Saves/Appends the plot to the predetermined PDF file
+def savePlot():
+    if(output_pdf != None):
+        output_pdf.savefig(plt.gcf())
+        # plt.savefig(output_filename + "." + filetype, dpi=figdpi, format=filetype)
         print("Plot saved to " + output_filename + "." + filetype)
 
 #Takes a matrix X, and randomly sorts each column individually
@@ -70,6 +75,12 @@ def permuteColumns(x):
     ix_i = np.random.sample(x.shape).argsort(axis=0)
     ix_j = np.tile(np.arange(x.shape[1]), (x.shape[0], 1))
     return x[ix_i, ix_j]
+
+# Key listener function used to close all plt windows on escape
+def close_windows(event):
+    if event.key == 'escape':
+        plt.close('all')
+        sys.exit(0)
 
 # Reads in a .csv file containing spectra data
 def readSpectraData(input_filename):
@@ -79,12 +90,12 @@ def readSpectraData(input_filename):
 
 # Plots one spectra given the bin lower bounds and the intensities of the spectra
 # Line color and Spectra Number are used for differentiating between other plots
-def generateMassspectraPlot(bin_lower_bounds, intensities, line_color, spectra_number, ax):
+def generateMassSpectraPlot(bin_lower_bounds, intensities, line_color, spectra_number, ax):
     spectra = "Spectra " + str(spectra_number)
     spectra_plt = ax.bar(bin_lower_bounds, intensities, color=line_color, label=spectra)
 
 # Takes in spectra data and the spectra #s to plot and plots them, ouputing the result to a file if filename is provided
-def generateMultipleMassspectraPlots(spectra_data, spectra_numbers, output_filename=None):
+def generateMultipleMassSpectraPlots(spectra_data, spectra_numbers):
     bin_lower_bounds = []
     # Loops through each column header in the .csv file to get the lower bound for plotting
     for column in spectra_data.columns:
@@ -99,16 +110,16 @@ def generateMultipleMassspectraPlots(spectra_data, spectra_numbers, output_filen
         intensities = m_to_z
         if(np.max(m_to_z) != 0):
             intensities = m_to_z/np.max(m_to_z) * 100 # Normalizes the spectra values to intensities based on the max value for that spectra
-        generateMassspectraPlot(bin_lower_bounds, intensities, plt_colors[color_iterator], spectra, ax)
+        generateMassSpectraPlot(bin_lower_bounds, intensities, plt_colors[color_iterator], spectra, ax)
         color_iterator += 1 
 
     legend = plt.legend() # Includes the legend in the upper right that shows the color corresponding to each spectra plot
-    savePlot(output_filename)
-    plt.show()
+    
+    savePlot()
 
 ''' Creates a NMF model of the entire spectra data and plots the basis vectors for this model
 Plotted by normalizing the basis vector for each bin number to get intensity and plotting against the bin # '''
-def generateSpectraPlot(spectra_data, output_filename=None):
+def generateSpectraPlot(spectra_data):
     bin_lower_bounds = []
 
     # Loops through each column header in the .csv file to get the lower bound for plotting
@@ -130,11 +141,11 @@ def generateSpectraPlot(spectra_data, output_filename=None):
     intensities = intensities/np.max(intensities) * 100
     spectra_plt = ax.bar(bin_lower_bounds, intensities)
 
-    savePlot(output_filename)
-    plt.show()
+    savePlot()
+
 
 # Creates a plot that compares the rss values between the NMF model of the original data matrix and a randomly created one
-def generateRssPlot(spectra_data, output_filename=None):
+def generateRssPlot(spectra_data):
     data = np.transpose(spectra_data.values)
     #Reorganizes each column of the data matrix
     permutated_data = permuteColumns(data)
@@ -144,7 +155,7 @@ def generateRssPlot(spectra_data, output_filename=None):
     rss = []
 
     #Loops through each k value and creates an NMF model for both the permutated data and original data
-    #Adds the absolute value difference between the two rss values to an array
+    #Adds the ratio between the two rss values to an array
     for x in k:
         nmf_model = nimfa.Nmf(data, rank=x)
         nmf_model()
@@ -152,17 +163,17 @@ def generateRssPlot(spectra_data, output_filename=None):
         permutation_model = nimfa.Nmf(permutated_data, rank=x)
         permutation_model()
         permutation_rss = permutation_model.rss()
-        rss.append(abs(permutation_rss-data_rss))
+        rss.append(data_rss/permutation_rss)
 
     print(k)
     print(rss)
 
-    ax = graphSetup("MassSpectra RSS Plot", "K Value (# of Basis Vectors)", "Difference in RSS Value", [np.min(k), np.max(k)], [int(np.min(rss)), mt.ceil(np.max(rss))])
+    ax = graphSetup("MassSpectra RSS Plot", "K Value (# of Basis Vectors)", "Ratio Between RSS Value", [np.min(k), np.max(k)], [int(np.min(rss)), mt.ceil(np.max(rss))])
    
     rss_plt = ax.plot(k, rss)
 
-    savePlot(output_filename)
-    plt.show()
+    savePlot()
+
 
 # Sample Command to run:
 # python3 mass_spectra_plot.py --data data/agp3k_data.csv --spectra 1 2 3 4 5 6 -output plot
@@ -178,6 +189,9 @@ if __name__ == "__main__":
     input_spectra = args.spectra
     output_filename = args.output
 
+    if output_filename != None:
+        output_pdf = PdfPages(output_filename + "." + filetype) # Creates object used to write plots to a pdf file
+
     # Only 6 colors so only 6 spectra can be plotted - more spectra can be plotted by adding more colors to the array at the top of file
     max_spectra_amount = len(plt_colors)
     """if(len(input_spectra) > max_spectra_amount):
@@ -185,6 +199,15 @@ if __name__ == "__main__":
         input_spectra = input_spectra[:max_spectra_amount]
 """
     spectra_data = readSpectraData(input_file)
-    generateRssPlot(spectra_data, output_filename)
-#    generateSpectraPlot(spectra_data, output_filename)
-#    generateMultipleMassspectraPlots(spectra_data, input_spectra, output_filename)
+    generateRssPlot(spectra_data)
+    generateSpectraPlot(spectra_data)
+    # generateMultipleMassSpectraPlots(spectra_data, input_spectra)
+
+    if output_filename != None:
+        output_pdf.close()
+    
+    plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
+
+    plt.show()
+
+    
